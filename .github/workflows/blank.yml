@@ -33,5 +33,6 @@ jobs:
           RANCHER_URL_DEV: ${{ secrets.RANCHER_URL_DEV }}
           RANCHER_TOKEN_DEV: ${{ secrets.RANCHER_TOKEN_DEV }}
         run: |
-          sed -e "s/\${RANCHER_URL}/$RANCHER_URL_DEV/" -e "s/\${RANCHER_TOKEN}/$RANCHER_TOKEN_DEV/" /runner/config_template > /runner/config
+          sed -e "s/\${RANCHER_URL}/$RANCHER_URL_DEV/" -e "s/\${RANCHER_TOKEN}/$RANCHER_TOKEN_DEV/" /runner/config_template > /runner/.kube/config
           kubectl get nodes
+          rm -f /runner/.kube/config
