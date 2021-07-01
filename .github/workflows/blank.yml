@@ -1,19 +1,14 @@
 name: CI
-
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
   push:
     branches: [ sgp ]
   pull_request:
     branches: [ sgp ]
 
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  build_beckend:
+  backend:
     runs-on: dotnet
     steps:
       -
@@ -23,29 +18,13 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
-        name: Checkout
-
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
+      - name: Docker Build
         run: | 
           git status
           docker build -t luizhpriotto/sme-sgp-backend:dev -f src/SME.SGP.Api/Dockerfile .
           docker push luizhpriotto/sme-sgp-backend:dev 
 
-      # Runs a set of commands using the runners shell
-      - name: Run an ajdust of kubernetes dev
-        env: # Ou como uma variável de ambiente
-          RANCHER_URL_DEV: ${{ secrets.RANCHER_URL_DEV }}
-          RANCHER_TOKEN_DEV: ${{ secrets.RANCHER_TOKEN_DEV }}
-        run: |
-          sed -e "s/\${RANCHER_URL}/$RANCHER_URL_DEV/" -e "s/\${RANCHER_TOKEN}/$RANCHER_TOKEN_DEV/" /runner/config_template > /runner/.kube/config
-          kubectl get nodes
-          rm -f /runner/.kube/config
-
-  build_workerservice:
+  workerservice:
     runs-on: dotnet
     steps:
       -
@@ -55,29 +34,17 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
         name: Checkout
 
       # Runs a single command using the runners shell
-      - name: Run a one-line script
+      - name: Docker Build
         run: | 
           git status
           docker build -t luizhpriotto/sme-workerservice:dev -f src/SME.SGP.WorkerService/Dockerfile .
           docker push luizhpriotto/sme-workerservice:dev 
 
-      # Runs a set of commands using the runners shell
-      - name: Run an ajdust of kubernetes dev
-        env: # Ou como uma variável de ambiente
-          RANCHER_URL_DEV: ${{ secrets.RANCHER_URL_DEV }}
-          RANCHER_TOKEN_DEV: ${{ secrets.RANCHER_TOKEN_DEV }}
-        run: |
-          sed -e "s/\${RANCHER_URL}/$RANCHER_URL_DEV/" -e "s/\${RANCHER_TOKEN}/$RANCHER_TOKEN_DEV/" /runner/config_template > /runner/.kube/config
-          kubectl get nodes
-          rm -f /runner/.kube/config
-
-  build_workerrabbit:
+  workerrabbit:
     runs-on: dotnet
     steps:
       -
@@ -87,24 +54,36 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
         name: Checkout
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
+      - name: Docker Build
         run: | 
           git status
           docker build -t luizhpriotto/sme-worker-rabbit:dev -f src/SME.SGP.Worker.Rabbbit/Dockerfile .
           docker push luizhpriotto/sme-worker-rabbit:dev
-
-      # Runs a set of commands using the runners shell
-      - name: Run an ajdust of kubernetes dev
+          
+  deploy-dev:
+    runs-on: dotnet
+    environment:
+      name: dev
+      url: dev-novosgp.sme.prefeitura.sp.gov.br
+    needs: [ backend, workerservice, workerrabbit ]
+    steps:
+      - name: Run an adjust of kubernetes dev
         env: # Ou como uma variável de ambiente
-          RANCHER_URL_DEV: ${{ secrets.RANCHER_URL_DEV }}
-          RANCHER_TOKEN_DEV: ${{ secrets.RANCHER_TOKEN_DEV }}
+          RANCHER_URL_DEV: ${{ secrets.RANCHER_URL }}
+          RANCHER_TOKEN_DEV: ${{ secrets.RANCHER_TOKEN }}
         run: |
-          sed -e "s/\${RANCHER_URL}/$RANCHER_URL_DEV/" -e "s/\${RANCHER_TOKEN}/$RANCHER_TOKEN_DEV/" /runner/config_template > /runner/.kube/config
+          sed -e "s/\${RANCHER_URL}/$RANCHER_URL/" -e "s/\${RANCHER_TOKEN}/$RANCHER_TOKEN/" /runner/config_template > /runner/.kube/config
           kubectl get nodes
           rm -f /runner/.kube/config
+          
+      - 
+       name: Change Images
+       run: |
+         kubectl rollout restart deployment/sme-api -n sme-novosgp
+         kubectl rollout restart deployment/sme-workerservice -n sme-novosgp
+         kubectl rollout restart deployment/sme-worker-rabbit -n sme-novosgp
+         
+     
