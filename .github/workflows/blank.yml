@@ -80,7 +80,7 @@ jobs:
     runs-on: dotnet
     environment:
       name: dev
-      url: dev-novosgp.sme.prefeitura.sp.gov.br
+      url: https://dev-novosgp.sme.prefeitura.sp.gov.br
     needs: [ flyway ]
     steps:
       - name: Run an adjust of kubernetes dev
