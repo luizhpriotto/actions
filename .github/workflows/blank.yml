@@ -63,27 +63,43 @@ jobs:
           docker build -t luizhpriotto/sme-worker-rabbit:dev -f src/SME.SGP.Worker.Rabbbit/Dockerfile .
           docker push luizhpriotto/sme-worker-rabbit:dev
           
+  flyway:
+    runs-on: dotnet
+    environment:
+      name: hom
+    needs: [ backend, workerservice, workerrabbit ]
+    steps:
+    - name: Executando Scripts
+      env:
+          USER_DB: ${{ secrets.USER_DB }}
+          PASSWORD_DB: ${{ secrets.PASSWORD_DB }}
+          URL_DB: ${{ secrets.URL_DB }}
+      run: docker run --rm -v $PWD/scripts:/flyway/sql boxfuse/flyway:5.2.4 -user=$USER_DB -password=$PASSWORD_DB -url=$URL_DB -outOfOrder=true migrate
+      
   deploy-dev:
     runs-on: dotnet
     environment:
       name: dev
       url: dev-novosgp.sme.prefeitura.sp.gov.br
-    needs: [ backend, workerservice, workerrabbit ]
+    needs: [ flyway ]
     steps:
       - name: Run an adjust of kubernetes dev
         env: # Ou como uma variável de ambiente
-          RANCHER_URL_DEV: ${{ secrets.RANCHER_URL }}
-          RANCHER_TOKEN_DEV: ${{ secrets.RANCHER_TOKEN }}
+          RANCHER_URL: ${{ secrets.RANCHER_URL }}
+          RANCHER_TOKEN: ${{ secrets.RANCHER_TOKEN }}
         run: |
           sed -e "s/\${RANCHER_URL}/$RANCHER_URL/" -e "s/\${RANCHER_TOKEN}/$RANCHER_TOKEN/" /runner/config_template > /runner/.kube/config
           kubectl get nodes
-          rm -f /runner/.kube/config
-          
+          rm -f /runner/.kube/config          
       - 
        name: Change Images
        run: |
          kubectl rollout restart deployment/sme-api -n sme-novosgp
          kubectl rollout restart deployment/sme-workerservice -n sme-novosgp
          kubectl rollout restart deployment/sme-worker-rabbit -n sme-novosgp
+      -
+       name: Remove Images
+       run: |
+         docker rmi luizhpriotto/sme-workerservice:dev luizhpriotto/sme-sgp-backend:dev luizhpriotto/sme-worker-rabbit:dev
          
      
