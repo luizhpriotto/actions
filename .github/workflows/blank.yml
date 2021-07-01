@@ -101,5 +101,7 @@ jobs:
        name: Remove Images
        run: |
          docker rmi luizhpriotto/sme-workerservice:dev luizhpriotto/sme-sgp-backend:dev luizhpriotto/sme-worker-rabbit:dev
+          docker rm $(docker ps -f "status=exited" -qa)
+          docker image rm $(docker images --filter "dangling=true" -qa)
          
      
