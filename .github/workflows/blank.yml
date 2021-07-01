@@ -89,14 +89,14 @@ jobs:
           RANCHER_TOKEN: ${{ secrets.RANCHER_TOKEN }}
         run: |
           sed -e "s/\${RANCHER_URL}/$RANCHER_URL/" -e "s/\${RANCHER_TOKEN}/$RANCHER_TOKEN/" /runner/config_template > /runner/.kube/config
-          kubectl get nodes
-          rm -f /runner/.kube/config          
+          kubectl get nodes          
       - 
        name: Change Images
        run: |
          kubectl rollout restart deployment/sme-api -n sme-novosgp
          kubectl rollout restart deployment/sme-workerservice -n sme-novosgp
-         kubectl rollout restart deployment/sme-worker-rabbit -n sme-novosgp
+         kubectl rollout restart deployment/sme-worker-rabbit -n sme-novosgp         
+         rm -f /runner/.kube/config
       -
        name: Remove Images
        run: |
