@@ -9,19 +9,6 @@ on:
   
 jobs:
 
-  tagging:
-    runs-on: dotnet
-    steps:
-      - name: Set the value
-        id: step_one
-        if: endsWith(github.ref, '/teste')
-        run: |
-          echo "image_tag=dev" >> $GITHUB_ENV
-      - name: Use the value
-        id: step_two
-        run: |
-          echo "${{ env.image_tag }}"
-
   backend:
     runs-on: dotnet
     steps:
@@ -114,7 +101,7 @@ jobs:
   deploy-dev:
     runs-on: dotnet
     environment:
-      name: $MY_VAR
+      name: dev
       url: https://dev-novosgp.sme.prefeitura.sp.gov.br
     needs: [ flyway ]
     steps:
