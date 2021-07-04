@@ -87,10 +87,17 @@ jobs:
           
   flyway:
     runs-on: dotnet
-    environment:
-      name: hom
     needs: [ backend, workerservice, workerrabbit ]
     steps:
+    - name: Set env to staging
+      if: endsWith(github.ref, '/teste')
+      run: |
+        echo "::set-env name=ENVIRONMENT::dev"
+    - name: Set env to production
+      if: endsWith(github.ref, '/sgp')
+      run: |
+        echo "::set-env name=ENVIRONMENT::hom"
+    
     - name: Executando Scripts
       env:
           USER_DB: ${{ secrets.USER_DB }}
