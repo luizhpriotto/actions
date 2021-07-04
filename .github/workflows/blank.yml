@@ -18,6 +18,7 @@ jobs:
         name: Set branch-based environment variables
         uses: iamtheyammer/branch-env-vars@v1.0.3
         with:
+          bevOverwrite: true
           MY_VAR: |
             sgp:hom
             teste:dev
@@ -93,7 +94,7 @@ jobs:
   deploy-dev:
     runs-on: dotnet
     environment:
-      name: ${MY_VAR}
+      name: $MY_VAR
       url: https://dev-novosgp.sme.prefeitura.sp.gov.br
     needs: [ flyway ]
     steps:
