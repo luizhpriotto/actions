@@ -11,21 +11,26 @@ on:
 
 jobs:
 
-  variables:
+  tagging:
     runs-on: dotnet
     steps:
-      - 
-        name: Set branch-based environment variables
-        uses: iamtheyammer/branch-env-vars@v1.0.3
-        with:
-          bevOverwrite: true
-          MY_VAR: |
-            sgp:hom
-            teste:dev
+      - name: Set the value
+        id: step_one
+        if: endsWith(github.ref, '/teste')
+        run: |
+          echo "image_tag=dev" >> $GITHUB_ENV
+      - name: Use the value
+        id: step_two
+        run: |
+          echo "${{ env.image_tag }}"
 
   backend:
     runs-on: dotnet
+    needs: tagging
     steps:
+      - name: Use the value
+        run: |
+          echo "${{ env.image_tag }}"
       -
         name: Login to Docker Hub
         uses: docker/login-action@v1
