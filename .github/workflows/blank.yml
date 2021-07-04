@@ -1,13 +1,27 @@
 name: CI
 on:
   push:
-    branches: [ sgp ]
+    branches: [ teste ]
   pull_request:
-    branches: [ sgp ]
+    branches: [ teste ]
 
   workflow_dispatch:
+  
+
 
 jobs:
+
+  variables:
+    runs-on: dotnet
+    steps:
+      - 
+        name: Set branch-based environment variables
+        uses: iamtheyammer/branch-env-vars@v1.0.3
+        with:
+          MY_VAR: |
+            sgp:hom
+            teste:dev
+
   backend:
     runs-on: dotnet
     steps:
@@ -79,7 +93,7 @@ jobs:
   deploy-dev:
     runs-on: dotnet
     environment:
-      name: dev
+      name: ${{ MY_VAR }}
       url: https://dev-novosgp.sme.prefeitura.sp.gov.br
     needs: [ flyway ]
     steps:
