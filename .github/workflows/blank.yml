@@ -13,7 +13,6 @@ jobs:
     runs-on: dotnet
     steps:
       - name: Set the tag dev
-        id: step_one
         if: endsWith(github.ref, '/teste')
         run: echo "image_tag=dev" >> $GITHUB_ENV
       - name: Set the tag hom
@@ -28,7 +27,6 @@ jobs:
 
       - name: Docker Build
         run: | 
-          git status
           docker build -t luizhpriotto/sme-sgp-backend:dev -f src/SME.SGP.Api/Dockerfile .
           docker push luizhpriotto/sme-sgp-backend:${{ env.image_tag }} 
 
@@ -36,7 +34,6 @@ jobs:
     runs-on: dotnet
     steps:
       - name: Set the tag dev
-        id: step_one
         if: endsWith(github.ref, '/teste')
         run: echo "image_tag=dev" >> $GITHUB_ENV
       - name: Set the tag hom
@@ -63,7 +60,6 @@ jobs:
     runs-on: dotnet
     steps:
       - name: Set the tag dev
-        id: step_one
         if: endsWith(github.ref, '/teste')
         run: echo "image_tag=dev" >> $GITHUB_ENV
       - name: Set the tag hom
@@ -88,16 +84,9 @@ jobs:
   flyway:
     runs-on: dotnet
     needs: [ backend, workerservice, workerrabbit ]
-    steps:
-    - name: Set env to staging
-      if: endsWith(github.ref, '/teste')
-      run: |
-        echo "::set-env name=ENVIRONMENT::hom"
-    - name: Set env to production
-      if: endsWith(github.ref, '/sgp')
-      run: |
-        echo "::set-env name=ENVIRONMENT::dev"
-    
+    environment:
+     name: hom
+    steps:    
     - name: Executando Scripts
       env:
           USER_DB: ${{ secrets.USER_DB }}
