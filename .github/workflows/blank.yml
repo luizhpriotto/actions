@@ -1,14 +1,12 @@
 name: CI
 on:
   push:
-    branches: [ teste ]
+    branches: [ teste, sgp ]
   pull_request:
-    branches: [ teste ]
+    branches: [ teste, sgp ]
 
   workflow_dispatch:
   
-
-
 jobs:
 
   tagging:
@@ -26,11 +24,14 @@ jobs:
 
   backend:
     runs-on: dotnet
-    needs: tagging
     steps:
-      - name: Use the value
-        run: |
-          echo "${{ env.image_tag }}"
+      - name: Set the tag dev
+        id: step_one
+        if: endsWith(github.ref, '/teste')
+        run: echo "image_tag=dev" >> $GITHUB_ENV
+      - name: Set the tag hom
+        if: endsWith(github.ref, '/sgp')
+        run: echo "image_tag=hom" >> $GITHUB_ENV      
       -
         name: Login to Docker Hub
         uses: docker/login-action@v1
@@ -42,11 +43,18 @@ jobs:
         run: | 
           git status
           docker build -t luizhpriotto/sme-sgp-backend:dev -f src/SME.SGP.Api/Dockerfile .
-          docker push luizhpriotto/sme-sgp-backend:dev 
+          docker push luizhpriotto/sme-sgp-backend:${{ env.image_tag }} 
 
   workerservice:
     runs-on: dotnet
     steps:
+      - name: Set the tag dev
+        id: step_one
+        if: endsWith(github.ref, '/teste')
+        run: echo "image_tag=dev" >> $GITHUB_ENV
+      - name: Set the tag hom
+        if: endsWith(github.ref, '/sgp')
+        run: echo "image_tag=hom" >> $GITHUB_ENV      
       -
         name: Login to Docker Hub
         uses: docker/login-action@v1
@@ -62,11 +70,18 @@ jobs:
         run: | 
           git status
           docker build -t luizhpriotto/sme-workerservice:dev -f src/SME.SGP.WorkerService/Dockerfile .
-          docker push luizhpriotto/sme-workerservice:dev 
+          docker push luizhpriotto/sme-workerservice:${{ env.image_tag }}
 
   workerrabbit:
     runs-on: dotnet
     steps:
+      - name: Set the tag dev
+        id: step_one
+        if: endsWith(github.ref, '/teste')
+        run: echo "image_tag=dev" >> $GITHUB_ENV
+      - name: Set the tag hom
+        if: endsWith(github.ref, '/sgp')
+        run: echo "image_tag=hom" >> $GITHUB_ENV      
       -
         name: Login to Docker Hub
         uses: docker/login-action@v1
@@ -81,12 +96,12 @@ jobs:
         run: | 
           git status
           docker build -t luizhpriotto/sme-worker-rabbit:dev -f src/SME.SGP.Worker.Rabbbit/Dockerfile .
-          docker push luizhpriotto/sme-worker-rabbit:dev
+          docker push luizhpriotto/sme-worker-rabbit:${{ env.image_tag }}
           
   flyway:
     runs-on: dotnet
     environment:
-      name: hom
+      name: ${{ env.image_tag }}
     needs: [ backend, workerservice, workerrabbit ]
     steps:
     - name: Executando Scripts
