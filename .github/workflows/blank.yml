@@ -92,11 +92,11 @@ jobs:
     - name: Set env to staging
       if: endsWith(github.ref, '/teste')
       run: |
-        echo "::set-env name=ENVIRONMENT::dev"
+        echo "::set-env name=ENVIRONMENT::hom"
     - name: Set env to production
       if: endsWith(github.ref, '/sgp')
       run: |
-        echo "::set-env name=ENVIRONMENT::hom"
+        echo "::set-env name=ENVIRONMENT::dev"
     
     - name: Executando Scripts
       env:
