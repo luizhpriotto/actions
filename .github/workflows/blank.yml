@@ -101,7 +101,7 @@ jobs:
   flyway:
     runs-on: dotnet
     environment:
-      name: ${{ env.image_tag }}
+      name: hom
     needs: [ backend, workerservice, workerrabbit ]
     steps:
     - name: Executando Scripts
