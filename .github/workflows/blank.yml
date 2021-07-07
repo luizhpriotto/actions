@@ -1,9 +1,9 @@
-name: CI
+name: Producao
 on:
   push:
-    branches: [ sgp ]
+    branches: [ master, main ]
   pull_request:
-    branches: [ sgp ]
+    branches: [ master, main ]
 
   workflow_dispatch:
 
@@ -15,14 +15,15 @@ jobs:
         name: Login to Docker Hub
         uses: docker/login-action@v1
         with:
+          registry: registry.sme.prefeitura.sp.gov.br
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Docker Build
         run: | 
           git status
-          docker build -t luizhpriotto/sme-sgp-backend:dev -f src/SME.SGP.Api/Dockerfile .
-          docker push luizhpriotto/sme-sgp-backend:dev 
+          docker build -t registry.sme.prefeitura.sp.gov.br/main/sme-sgp-backend -f src/SME.SGP.Api/Dockerfile .
+          docker push registry.sme.prefeitura.sp.gov.br/main/sme-sgp-backend
 
   workerservice:
     runs-on: dotnet
@@ -41,8 +42,8 @@ jobs:
       - name: Docker Build
         run: | 
           git status
-          docker build -t luizhpriotto/sme-workerservice:dev -f src/SME.SGP.WorkerService/Dockerfile .
-          docker push luizhpriotto/sme-workerservice:dev 
+          docker build -t registry.sme.prefeitura.sp.gov.br/main/sme-workerservice -f src/SME.SGP.WorkerService/Dockerfile .
+          docker push registry.sme.prefeitura.sp.gov.br/main/sme-workerservice 
 
   workerrabbit:
     runs-on: dotnet
@@ -60,8 +61,8 @@ jobs:
       - name: Docker Build
         run: | 
           git status
-          docker build -t luizhpriotto/sme-worker-rabbit:dev -f src/SME.SGP.Worker.Rabbbit/Dockerfile .
-          docker push luizhpriotto/sme-worker-rabbit:dev
+          docker build -t registry.sme.prefeitura.sp.gov.br/main/sme-worker-rabbit -f src/SME.SGP.Worker.Rabbbit/Dockerfile .
+          docker push registry.sme.prefeitura.sp.gov.br/main/sme-worker-rabbit
           
   flyway:
     runs-on: dotnet
@@ -76,11 +77,11 @@ jobs:
           URL_DB: ${{ secrets.URL_DB }}
       run: docker run --rm -v $PWD/scripts:/flyway/sql boxfuse/flyway:5.2.4 -user=$USER_DB -password=$PASSWORD_DB -url=$URL_DB -outOfOrder=true migrate
       
-  deploy-dev:
+  deploy:
     runs-on: dotnet
     environment:
-      name: dev
-      url: https://dev-novosgp.sme.prefeitura.sp.gov.br
+      name: prd
+      url: https://novosgp.sme.prefeitura.sp.gov.br
     needs: [ flyway ]
     steps:
       - name: Run an adjust of kubernetes dev
@@ -100,4 +101,4 @@ jobs:
       -
        name: Remove Images
        run: |
-         docker rmi luizhpriotto/sme-workerservice:dev luizhpriotto/sme-sgp-backend:dev luizhpriotto/sme-worker-rabbit:dev
+         docker rmi registry.sme.prefeitura.sp.gov.br/main/sme-workerservice registry.sme.prefeitura.sp.gov.br/main/sme-sgp-backend registry.sme.prefeitura.sp.gov.br/main/sme-worker-rabbit
