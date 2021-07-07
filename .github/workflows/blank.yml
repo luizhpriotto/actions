@@ -1,38 +1,103 @@
 name: CI
-
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
   push:
     branches: [ sgp ]
   pull_request:
     branches: [ sgp ]
 
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+  backend:
     runs-on: dotnet
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      -
+        name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Docker Build
+        run: | 
+          git status
+          docker build -t luizhpriotto/sme-sgp-backend:dev -f src/SME.SGP.Api/Dockerfile .
+          docker push luizhpriotto/sme-sgp-backend:dev 
+
+  workerservice:
+    runs-on: dotnet
+    steps:
+      -
+        name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - uses: actions/checkout@v2
+        name: Checkout
 
       # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+      - name: Docker Build
+        run: | 
+          git status
+          docker build -t luizhpriotto/sme-workerservice:dev -f src/SME.SGP.WorkerService/Dockerfile .
+          docker push luizhpriotto/sme-workerservice:dev 
 
-      # Runs a set of commands using the runners shell
-      - name: Run an ajdust of kubernetes dev
+  workerrabbit:
+    runs-on: dotnet
+    steps:
+      -
+        name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: actions/checkout@v2
+        name: Checkout
+
+      - name: Docker Build
+        run: | 
+          git status
+          docker build -t luizhpriotto/sme-worker-rabbit:dev -f src/SME.SGP.Worker.Rabbbit/Dockerfile .
+          docker push luizhpriotto/sme-worker-rabbit:dev
+          
+  flyway:
+    runs-on: dotnet
+    environment:
+      name: hom
+    needs: [ backend, workerservice, workerrabbit ]
+    steps:
+    - name: Executando Scripts
+      env:
+          USER_DB: ${{ secrets.USER_DB }}
+          PASSWORD_DB: ${{ secrets.PASSWORD_DB }}
+          URL_DB: ${{ secrets.URL_DB }}
+      run: docker run --rm -v $PWD/scripts:/flyway/sql boxfuse/flyway:5.2.4 -user=$USER_DB -password=$PASSWORD_DB -url=$URL_DB -outOfOrder=true migrate
+      
+  deploy-dev:
+    runs-on: dotnet
+    environment:
+      name: dev
+      url: https://dev-novosgp.sme.prefeitura.sp.gov.br
+    needs: [ flyway ]
+    steps:
+      - name: Run an adjust of kubernetes dev
         env: # Ou como uma variável de ambiente
-          RANCHER_URL_DEV: ${{ secrets.RANCHER_URL_DEV }}
-          RANCHER_TOKEN_DEV: ${{ secrets.RANCHER_TOKEN_DEV }}
+          RANCHER_URL: ${{ secrets.RANCHER_URL }}
+          RANCHER_TOKEN: ${{ secrets.RANCHER_TOKEN }}
         run: |
-          sed -e "s/\${RANCHER_URL}/$RANCHER_URL_DEV/" -e "s/\${RANCHER_TOKEN}/$RANCHER_TOKEN_DEV/" /runner/config_template > /runner/.kube/config
-          kubectl get nodes
-          rm -f /runner/.kube/config
+          sed -e "s/\${RANCHER_URL}/$RANCHER_URL/" -e "s/\${RANCHER_TOKEN}/$RANCHER_TOKEN/" /runner/config_template > /runner/.kube/config
+          kubectl get nodes          
+      - 
+       name: Change Images
+       run: |
+         kubectl rollout restart deployment/sme-api -n sme-novosgp
+         kubectl rollout restart deployment/sme-workerservice -n sme-novosgp
+         kubectl rollout restart deployment/sme-worker-rabbit -n sme-novosgp         
+         rm -f /runner/.kube/config
+      -
+       name: Remove Images
+       run: |
+         docker rmi luizhpriotto/sme-workerservice:dev luizhpriotto/sme-sgp-backend:dev luizhpriotto/sme-worker-rabbit:dev
