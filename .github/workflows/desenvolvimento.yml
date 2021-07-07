@@ -1,0 +1,106 @@
+name: Desenvolvimento
+on:
+  push:
+    branches: [ development, dev ]
+  pull_request:
+    branches: [ development, dev ]
+
+  workflow_dispatch:
+
+jobs:
+  backend:
+    runs-on: dotnet
+    steps:
+      -
+        name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          registry: registry.sme.prefeitura.sp.gov.br
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Docker Build
+        run: | 
+          git status
+          docker build -t registry.sme.prefeitura.sp.gov.br/development/sme-sgp-backend -f src/SME.SGP.Api/Dockerfile .
+          docker push registry.sme.prefeitura.sp.gov.br/development/sme-sgp-backend
+
+  workerservice:
+    runs-on: dotnet
+    steps:
+      -
+        name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          registry: registry.sme.prefeitura.sp.gov.br
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: actions/checkout@v2
+        name: Checkout
+
+      # Runs a single command using the runners shell
+      - name: Docker Build
+        run: | 
+          git status
+          docker build -t registry.sme.prefeitura.sp.gov.br/development/sme-workerservice -f src/SME.SGP.WorkerService/Dockerfile .
+          docker push registry.sme.prefeitura.sp.gov.br/development/sme-workerservice 
+
+  workerrabbit:
+    runs-on: dotnet
+    steps:
+      -
+        name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          registry: registry.sme.prefeitura.sp.gov.br
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: actions/checkout@v2
+        name: Checkout
+
+      - name: Docker Build
+        run: | 
+          git status
+          docker build -t registry.sme.prefeitura.sp.gov.br/development/sme-worker-rabbit -f src/SME.SGP.Worker.Rabbbit/Dockerfile .
+          docker push registry.sme.prefeitura.sp.gov.br/development/sme-worker-rabbit
+          
+  flyway:
+    runs-on: dotnet
+    environment:
+      name: hom
+    needs: [ backend, workerservice, workerrabbit ]
+    steps:
+    - name: Executando Scripts
+      env:
+          USER_DB: ${{ secrets.USER_DB }}
+          PASSWORD_DB: ${{ secrets.PASSWORD_DB }}
+          URL_DB: ${{ secrets.URL_DB }}
+      run: docker run --rm -v $PWD/scripts:/flyway/sql boxfuse/flyway:5.2.4 -user=$USER_DB -password=$PASSWORD_DB -url=$URL_DB -outOfOrder=true migrate
+      
+  deploy:
+    runs-on: dotnet
+    environment:
+      name: dev
+      url: https://dev-novosgp.sme.prefeitura.sp.gov.br
+    needs: [ flyway ]
+    steps:
+      - name: Run an adjust of kubernetes dev
+        env: # Ou como uma variável de ambiente
+          RANCHER_URL: ${{ secrets.RANCHER_URL }}
+          RANCHER_TOKEN: ${{ secrets.RANCHER_TOKEN }}
+        run: |
+          sed -e "s/\${RANCHER_URL}/$RANCHER_URL/" -e "s/\${RANCHER_TOKEN}/$RANCHER_TOKEN/" /runner/config_template > /runner/.kube/config
+          kubectl get nodes          
+      - 
+       name: Change Images
+       run: |
+         kubectl rollout restart deployment/sme-api -n sme-novosgp
+         kubectl rollout restart deployment/sme-workerservice -n sme-novosgp
+         kubectl rollout restart deployment/sme-worker-rabbit -n sme-novosgp         
+         rm -f /runner/.kube/config
+      -
+       name: Remove Images
+       run: |
+         docker rmi registry.sme.prefeitura.sp.gov.br/development/sme-workerservice registry.sme.prefeitura.sp.gov.br/development/sme-sgp-backend registry.sme.prefeitura.sp.gov.br/development/sme-worker-rabbit
