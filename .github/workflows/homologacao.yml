@@ -1,4 +1,4 @@
-name: Producao
+name: Homologacao
 on:
   push:
     branches: [ homolog, hom ]
