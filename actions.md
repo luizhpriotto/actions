@@ -52,7 +52,7 @@ Após prova de conceito, concluímos que de fato a esteira criada dentro do Gith
 
 * Ferramenta é nova, podendo não possuir plugin para alguma ferramenta de terceiro em específico. 
 
-* Tokens gerados para remoção e registro dos runners expiram em 1 hora. 
+* Tokens gerados para remoção e registro dos runners expiram em 60 minutos. 
 
 * Não há possibilidade da criação de tokens sem expiração no momento. 
 
